@@ -1,9 +1,19 @@
-# ---------- build ----------
-FROM node:24-bookworm-slim AS build
+# ---------- base: build tools for native modules (better-sqlite3) ----------
+FROM node:24-bookworm-slim AS base
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/server/package.json apps/server/
 COPY apps/backoffice/package.json apps/backoffice/
+
+# ---------- production dependencies of the server only ----------
+FROM base AS prod-deps
+RUN npm ci --omit=dev -w apps/server --include-workspace-root=false
+
+# ---------- build both apps ----------
+FROM base AS build
 RUN npm ci
 COPY apps ./apps
 RUN npm run build
@@ -15,10 +25,9 @@ ENV NODE_ENV=production \
     PORT=3000 \
     DATA_DIR=/app/data \
     WEB_DIST_DIR=/app/apps/backoffice/dist
-COPY package.json package-lock.json ./
+COPY package.json ./
 COPY apps/server/package.json apps/server/
-COPY apps/backoffice/package.json apps/backoffice/
-RUN npm ci --omit=dev -w apps/server --include-workspace-root=false && npm cache clean --force
+COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/apps/server/dist ./apps/server/dist
 COPY --from=build /app/apps/backoffice/dist ./apps/backoffice/dist
 VOLUME ["/app/data"]

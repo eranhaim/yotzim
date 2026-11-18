@@ -38,11 +38,11 @@ The app runs as one Docker container behind the host's Caddy.
 git clone https://github.com/eranhaim/yotzim.git /home/deploy/projects/yotzim
 cd /home/deploy/projects/yotzim
 cp .env.example .env && nano .env
-docker compose up -d --build
+sudo -u deploy docker compose up -d --build
 # add deploy/Caddyfile.snippet to /etc/caddy/Caddyfile, then: caddy validate && systemctl reload caddy
 
 # every update
-sh deploy/deploy.sh
+sudo -u deploy sh deploy/deploy.sh   # the repo folder belongs to the deploy user
 ```
 
 Data (SQLite + uploaded media) is in the `yotzim_data` Docker volume.

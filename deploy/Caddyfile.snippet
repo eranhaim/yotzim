@@ -1,0 +1,8 @@
+# Add to /etc/caddy/Caddyfile on the server (back the file up first, then `caddy validate` and reload).
+# No `encode gzip` on purpose: keep responses streaming-friendly.
+yotzim.64.176.175.97.nip.io {
+	request_body {
+		max_size 320MB
+	}
+	reverse_proxy 127.0.0.1:8095
+}

@@ -1,0 +1,19 @@
+{
+  "name": "yotzim",
+  "private": true,
+  "description": "Yotzim back office, Instagram scheduler and WhatsApp AI sales agent",
+  "workspaces": [
+    "apps/server",
+    "apps/backoffice"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev -w apps/server",
+    "dev:web": "npm run dev -w apps/backoffice",
+    "build": "npm run build -w apps/server && npm run build -w apps/backoffice",
+    "start": "npm run start -w apps/server",
+    "typecheck": "npm run typecheck -w apps/server && npm run typecheck -w apps/backoffice"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

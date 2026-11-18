@@ -22,6 +22,9 @@ interface Props {
   height?: number | "auto";
 }
 
+/** "[דוגמה] NATURE TRANCE · יער בירייה" -> "NATURE TRANCE" (calendar cells are narrow). */
+const shortName = (name: string) => name.replace(/^\[[^\]]*\]\s*/, "").split(" · ")[0]!.trim();
+
 export interface PostCalendarHandle {
   refetch: () => void;
 }
@@ -59,7 +62,9 @@ export const PostCalendar = forwardRef<PostCalendarHandle, Props>(function PostC
           // Inside a party page the party name is redundant: show the caption instead.
           title: partyId
             ? p.caption.trim().split("\n")[0]!.slice(0, 40) || postTypeLabel[p.type].label
-            : (p.partyName?.replace(/^\[דוגמה\]\s*/, "") ?? "פוסט כללי"),
+            : p.partyName
+              ? shortName(p.partyName)
+              : "פוסט כללי",
           classNames: ["post-event"],
           startEditable: p.status === "scheduled" || p.status === "draft" || p.status === "failed",
           durationEditable: false,
@@ -74,7 +79,7 @@ export const PostCalendar = forwardRef<PostCalendarHandle, Props>(function PostC
         id: `party-${p.id}`,
         start: dayjs(p.startsAt).format("YYYY-MM-DD"),
         allDay: true,
-        title: `🎉 ${p.name}`,
+        title: `🎉 ${shortName(p.name)}`,
         classNames: ["party-event"],
         editable: false,
         extendedProps: { kind: "party", party: p },

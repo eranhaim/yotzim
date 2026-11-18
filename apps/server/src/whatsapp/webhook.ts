@@ -1,10 +1,11 @@
 import crypto from "node:crypto";
 import type { Request, Response } from "express";
 import { AgentNotConfiguredError, runAgentTurn } from "../agent/agent.js";
-import { addLeadEvent, appendTranscript, createLead, findLeadByChatId, getLeadRow, setBotPaused } from "../leads.js";
+import { db } from "../db.js";
+import { addLeadEvent, appendTranscript, createLead, findLeadByChatId, getLeadRow, setBotPaused, type LeadRow } from "../leads.js";
 import { getParty } from "../parties.js";
 import { getSetting } from "../settings.js";
-import { sendText } from "./greenapi.js";
+import { deliverToLead, parseEntryCode } from "./transport.js";
 
 /** Subset of the GREEN-API webhook body that we use. */
 interface GreenWebhook {
@@ -60,7 +61,7 @@ function queueMessage(chatId: string, leadId: number, text: string) {
   const current = entry ?? { texts: [text], leadId, timer: undefined as unknown as NodeJS.Timeout };
   current.timer = setTimeout(() => {
     pending.delete(chatId);
-    void answer(chatId, current.leadId, current.texts.join("\n"));
+    void answer(current.leadId, current.texts.join("\n"));
   }, DEBOUNCE_MS);
   pending.set(chatId, current);
 }
@@ -74,28 +75,51 @@ function alreadySeen(id: string | undefined) {
   return false;
 }
 
-async function answer(chatId: string, leadId: number, text: string) {
+/** Lets the agent answer a private chat and delivers the reply (GREEN-API, or nothing for a simulated chat). */
+export async function answer(leadId: number, text: string) {
   const lead = getLeadRow(leadId);
   if (!lead || lead.bot_paused) return;
   try {
     const { reply } = await runAgentTurn(leadId, text, "WhatsApp");
-    if (reply) await sendText(chatId, reply);
+    if (reply) await deliverToLead(lead, reply);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[whatsapp] agent failed for lead ${leadId}:`, msg);
     addLeadEvent(leadId, "agent_error", { message: msg });
     if (!(err instanceof AgentNotConfiguredError)) {
-      await sendText(chatId, "רגע, משהו השתבש אצלי 🙈 נחזור אלייך ממש בקרוב.").catch(() => {});
+      await deliverToLead(lead, "רגע, משהו השתבש אצלי 🙈 נחזור אלייך ממש בקרוב.").catch(() => {});
     }
   }
 }
 
-/** A wa.me link with "(#<partyId>)" in the text tells us which party post the lead came from. */
-function partyFromText(text: string): number | null {
-  const m = text.match(/\(#(\d{1,7})\)/);
-  if (!m) return null;
-  const id = Number(m[1]);
-  return getParty(id) ? id : null;
+const groupExists = db.prepare<[number], { id: number }>("SELECT id FROM wa_groups WHERE id = ?");
+
+/**
+ * Finds or creates the lead for a private chat. A wa.me link with "(#<partyId> g<groupId>)"
+ * in the first message tells us which party, and which WhatsApp group, the lead came from.
+ */
+export function ensureWhatsAppLead(
+  chatId: string,
+  senderName: string | null,
+  firstText: string | null,
+  simulated = false,
+): LeadRow {
+  const existing = findLeadByChatId(chatId);
+  if (existing) return existing;
+  const code = firstText ? parseEntryCode(firstText) : { partyId: null, groupId: null };
+  const sourcePartyId = code.partyId && getParty(code.partyId) ? code.partyId : null;
+  const sourceGroupId = code.groupId && groupExists.get(code.groupId) ? code.groupId : null;
+  const id = createLead({
+    channel: "whatsapp",
+    chatId,
+    phone: chatId.replace("@c.us", ""),
+    waName: senderName,
+    sourcePartyId,
+    sourceGroupId,
+    simulated,
+  });
+  addLeadEvent(id, "lead_created", { channel: "whatsapp", partyId: sourcePartyId, groupId: sourceGroupId, simulated });
+  return getLeadRow(id)!;
 }
 
 export async function greenApiWebhook(req: Request, res: Response) {
@@ -129,23 +153,12 @@ export async function greenApiWebhook(req: Request, res: Response) {
   if (body.typeWebhook !== "incomingMessageReceived") return;
   if (getSetting("whatsapp_agent_enabled") !== "true") return;
 
-  let lead = findLeadByChatId(chatId);
-  if (!lead) {
-    const id = createLead({
-      channel: "whatsapp",
-      chatId,
-      phone: chatId.replace("@c.us", ""),
-      waName: body.senderData?.senderName || body.senderData?.chatName || null,
-      sourcePartyId: text ? partyFromText(text) : null,
-    });
-    addLeadEvent(id, "lead_created", { channel: "whatsapp" });
-    lead = getLeadRow(id)!;
-  }
+  const lead = ensureWhatsAppLead(chatId, body.senderData?.senderName || body.senderData?.chatName || null, text);
 
   if (!text) {
     appendTranscript(lead.id, { role: "user", text: `[הודעה מסוג ${body.messageData?.typeMessage ?? "לא ידוע"}]` });
     if (!lead.bot_paused) {
-      await sendText(chatId, "כרגע אני יכולה לקרוא רק הודעות כתובות 🙏 אפשר לכתוב לי?").catch(() => {});
+      await deliverToLead(lead, "כרגע אני יכולה לקרוא רק הודעות כתובות 🙏 אפשר לכתוב לי?").catch(() => {});
     }
     return;
   }

@@ -21,6 +21,8 @@ export interface LeadRow {
   stage: LeadStage;
   interested_party_id: number | null;
   source_party_id: number | null;
+  source_group_id: number | null;
+  simulated: number;
   bot_paused: number;
   created_at: string;
   updated_at: string;
@@ -34,6 +36,7 @@ export interface TranscriptEntry {
 }
 
 const partyName = db.prepare<[number], { name: string }>("SELECT name FROM parties WHERE id = ?");
+const groupName = db.prepare<[number], { name: string }>("SELECT name FROM wa_groups WHERE id = ?");
 
 export function toLeadDto(row: LeadRow) {
   return {
@@ -55,6 +58,9 @@ export function toLeadDto(row: LeadRow) {
     interestedPartyName: row.interested_party_id ? (partyName.get(row.interested_party_id)?.name ?? null) : null,
     sourcePartyId: row.source_party_id,
     sourcePartyName: row.source_party_id ? (partyName.get(row.source_party_id)?.name ?? null) : null,
+    sourceGroupId: row.source_group_id,
+    sourceGroupName: row.source_group_id ? (groupName.get(row.source_group_id)?.name ?? null) : null,
+    simulated: Boolean(row.simulated),
     botPaused: Boolean(row.bot_paused),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -89,14 +95,26 @@ export function createLead(data: {
   phone?: string | null;
   waName?: string | null;
   sourcePartyId?: number | null;
+  sourceGroupId?: number | null;
+  simulated?: boolean;
 }) {
   const now = nowIso();
   const info = db
     .prepare(
-      `INSERT INTO leads (channel, chat_id, phone, wa_name, source_party_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO leads (channel, chat_id, phone, wa_name, source_party_id, source_group_id, simulated, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(data.channel, data.chatId ?? null, data.phone ?? null, data.waName ?? null, data.sourcePartyId ?? null, now, now);
+    .run(
+      data.channel,
+      data.chatId ?? null,
+      data.phone ?? null,
+      data.waName ?? null,
+      data.sourcePartyId ?? null,
+      data.sourceGroupId ?? null,
+      data.simulated ? 1 : 0,
+      now,
+      now,
+    );
   const id = Number(info.lastInsertRowid);
   db.prepare("INSERT INTO conversations (lead_id, updated_at) VALUES (?, ?)").run(id, now);
   return id;

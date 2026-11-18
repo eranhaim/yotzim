@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { config } from "../config.js";
+import { db } from "../db.js";
 import { appendTranscript, getConversation, getLeadRow, saveApiMessages, setBotPaused, toLeadDto } from "../leads.js";
 import { getParty } from "../parties.js";
 import { buildSystemPrompt } from "./prompt.js";
@@ -8,7 +9,7 @@ import { runTool, TOOLS, type ToolContext } from "./tools.js";
 type MessageParam = Anthropic.Beta.BetaMessageParam;
 
 let client: Anthropic | null = null;
-function getClient() {
+export function getClient() {
   client ??= new Anthropic();
   return client;
 }
@@ -71,6 +72,19 @@ function turnContext(leadId: number, isFirstTurn: boolean, channel: string): str
         lines.push(
           `This lead started the conversation from the post/ad of the party "${p.name}" (party_id ${p.id}). ` +
             `Open with this party, but check that it fits them before you push it.`,
+        );
+      }
+    }
+    if (isFirstTurn && lead.source_group_id) {
+      const g = db
+        .prepare<[number], { name: string; region: string | null; description: string | null }>(
+          "SELECT name, region, description FROM wa_groups WHERE id = ?",
+        )
+        .get(lead.source_group_id);
+      if (g) {
+        lines.push(
+          `The lead clicked the link in an announcement in the company's WhatsApp group "${g.name}"` +
+            `${g.region ? ` (a group for the ${g.region} area)` : ""}${g.description ? `. About the group: ${g.description}` : ""}.`,
         );
       }
     }

@@ -16,6 +16,8 @@ export const SETTING_DEFS = {
   ig_graph_host: { env: "IG_GRAPH_HOST", default: "https://graph.instagram.com", secret: false },
   ig_api_version: { env: "IG_API_VERSION", default: "v23.0", secret: false },
 
+  /** "simulation": the number lives inside the app. "greenapi": a real phone through GREEN-API. */
+  whatsapp_mode: { env: "WHATSAPP_MODE", default: "simulation", secret: false },
   greenapi_api_url: { env: "GREENAPI_API_URL", default: "https://api.green-api.com", secret: false },
   greenapi_id_instance: { env: "GREENAPI_ID_INSTANCE", default: "", secret: false },
   greenapi_api_token: { env: "GREENAPI_API_TOKEN", default: "", secret: true },

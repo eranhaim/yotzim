@@ -22,6 +22,7 @@ import { NewPartyPage } from "./pages/NewPartyPage";
 import { PartiesPage } from "./pages/PartiesPage";
 import { PartyPage } from "./pages/PartyPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { WhatsAppPage } from "./pages/WhatsAppPage";
 
 interface MetaContextValue {
   meta: Meta;
@@ -38,6 +39,7 @@ const NAV = [
   { to: "/", label: "דשבורד", icon: IconLayoutDashboard },
   { to: "/parties", label: "מסיבות", icon: IconConfetti },
   { to: "/calendar", label: "לוח פרסומים", icon: IconCalendarEvent },
+  { to: "/whatsapp", label: "וואטסאפ", icon: IconBrandWhatsapp },
   { to: "/leads", label: "לידים ושיחות", icon: IconUsers },
   { to: "/settings", label: "הגדרות", icon: IconSettings },
 ];
@@ -78,7 +80,7 @@ export function App() {
   );
 }
 
-function StatusDot({ ok, label, icon: Icon }: { ok: boolean; label: string; icon: typeof IconRobot }) {
+function StatusDot({ ok, label, icon: Icon, offLabel = "דמו" }: { ok: boolean; label: string; icon: typeof IconRobot; offLabel?: string }) {
   return (
     <Tooltip label={label}>
       <Badge
@@ -87,7 +89,7 @@ function StatusDot({ ok, label, icon: Icon }: { ok: boolean; label: string; icon
         leftSection={<Icon size={14} />}
         styles={{ label: { overflow: "visible" } }}
       >
-        {ok ? "מחובר" : "דמו"}
+        {ok ? "מחובר" : offLabel}
       </Badge>
     </Tooltip>
   );
@@ -135,9 +137,10 @@ function Shell({ onLogout }: { onLogout: () => void }) {
               label={meta.instagramLive ? "אינסטגרם מחובר: פוסטים יעלו באמת" : "אינסטגרם במצב דמו: פרסום מדומה"}
             />
             <StatusDot
-              ok={meta.greenApiConfigured}
+              ok={meta.whatsappLive}
               icon={IconBrandWhatsapp}
-              label={meta.greenApiConfigured ? "וואטסאפ (GREEN-API) מחובר" : "וואטסאפ לא מחובר עדיין"}
+              offLabel="סימולציה"
+              label={meta.whatsappLive ? "וואטסאפ (GREEN-API) מחובר" : "וואטסאפ במצב סימולציה: המספר פועל בתוך המערכת"}
             />
             <StatusDot
               ok={meta.agentConfigured}
@@ -185,6 +188,7 @@ function Shell({ onLogout }: { onLogout: () => void }) {
           <Route path="/parties/new" element={<NewPartyPage />} />
           <Route path="/parties/:id" element={<PartyPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/whatsapp" element={<WhatsAppPage />} />
           <Route path="/leads" element={<LeadsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />

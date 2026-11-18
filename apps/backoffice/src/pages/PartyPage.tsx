@@ -11,6 +11,7 @@ import {
   IconExternalLink,
   IconMapPin,
   IconRobot,
+  IconSpeakerphone,
 } from "@tabler/icons-react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
@@ -24,14 +25,8 @@ import { PartyCover } from "./PartiesPage";
 
 function WhatsAppEntryLink({ party }: { party: Party }) {
   const { meta } = useMeta();
-  const number = meta.whatsappBusinessNumber.replace(/\D/g, "");
-  if (!number) {
-    return (
-      <Text fz="xs" c="dimmed">
-        להפקת קישור וואטסאפ למסיבה, הגדירו את מספר הוואטסאפ של העסק בהגדרות.
-      </Text>
-    );
-  }
+  const navigate = useNavigate();
+  const number = meta.whatsappNumber;
   const text = `היי! ראיתי את "${party.name}" ואשמח לפרטים 🙌 (#${party.id})`;
   const link = `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
   return (
@@ -49,6 +44,15 @@ function WhatsAppEntryLink({ party }: { party: Party }) {
           </Tooltip>
         )}
       </CopyButton>
+      <Button
+        size="compact-xs"
+        variant="light"
+        color="green"
+        leftSection={<IconSpeakerphone size={14} />}
+        onClick={() => navigate(`/whatsapp?broadcast=${party.id}`)}
+      >
+        פרסום בקבוצות וואטסאפ
+      </Button>
     </Group>
   );
 }

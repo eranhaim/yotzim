@@ -45,30 +45,12 @@ import {
 } from "./posts.js";
 import { getMediaMany } from "./media.js";
 import { ensureWebhookToken, getSetting, publicSettings, setSetting, SETTING_DEFS, type SettingKey } from "./settings.js";
-import { getInstanceSettings, getState, greenApiConfigured, sendText, setWebhook } from "./whatsapp/greenapi.js";
+import { HttpError, idParam, parse } from "./http.js";
+import { getInstanceSettings, getState, greenApiConfigured, setWebhook } from "./whatsapp/greenapi.js";
+import { whatsappRoutes } from "./whatsapp/routes.js";
+import { businessNumber, deliverToLead, whatsappLive } from "./whatsapp/transport.js";
 
 export const api = Router();
-
-class HttpError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
-const idParam = (req: Request) => {
-  const id = Number(req.params.id);
-  if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, "מזהה לא תקין");
-  return id;
-};
-
-function parse<T>(schema: z.ZodType<T>, body: unknown): T {
-  const r = schema.safeParse(body);
-  if (!r.success) throw new HttpError(400, r.error.issues.map((i) => i.message).join(", "));
-  return r.data;
-}
 
 /* ---------------- meta & dashboard ---------------- */
 
@@ -82,6 +64,9 @@ api.get("/meta", (_req, res) => {
     agentConfigured: agentConfigured(),
     agentModel: config.anthropicModel,
     greenApiConfigured: greenApiConfigured(),
+    whatsappMode: getSetting("whatsapp_mode"),
+    whatsappLive: whatsappLive(),
+    whatsappNumber: businessNumber(),
   });
 });
 
@@ -250,10 +235,8 @@ api.post("/leads/:id/send", async (req, res) => {
   const lead = getLeadRow(id);
   if (!lead) throw new HttpError(404, "הליד לא נמצא");
   const { text } = parse(z.object({ text: z.string().trim().min(1) }), req.body);
-  if (lead.channel === "whatsapp") {
-    if (!lead.chat_id) throw new HttpError(400, "אין מספר וואטסאפ לליד");
-    await sendText(lead.chat_id, text);
-  }
+  if (lead.channel === "whatsapp" && !lead.chat_id) throw new HttpError(400, "אין מספר וואטסאפ לליד");
+  await deliverToLead(lead, text);
   appendTranscript(id, { role: "human_agent", text });
   if (!lead.bot_paused) setBotPaused(id, true);
   res.json({ ok: true });
@@ -284,6 +267,10 @@ api.post("/simulation/:id/message", async (req, res) => {
     throw err;
   }
 });
+
+/* ---------------- WhatsApp number, groups and chats ---------------- */
+
+api.use("/whatsapp", whatsappRoutes);
 
 /* ---------------- settings ---------------- */
 

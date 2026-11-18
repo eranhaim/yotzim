@@ -10,6 +10,7 @@ import {
   Loader,
   Paper,
   PasswordInput,
+  SegmentedControl,
   Select,
   SimpleGrid,
   Stack,
@@ -262,6 +263,22 @@ export function SettingsPage() {
           יוצרים instance ב-console.green-api.com, סורקים QR עם הטלפון של העסק, ומדביקים כאן את הפרטים. אחר כך לוחצים ״חיבור webhook״.
         </Text>
         <Stack>
+          <div>
+            <Text fz="sm" fw={500} mb={4}>
+              מצב המספר
+            </Text>
+            <SegmentedControl
+              value={str("whatsapp_mode") || "simulation"}
+              onChange={(v) => set("whatsapp_mode", v)}
+              data={[
+                { value: "simulation", label: "סימולציה (המספר פועל בתוך המערכת)" },
+                { value: "greenapi", label: "טלפון אמיתי (GREEN-API)" },
+              ]}
+            />
+            <Text fz="xs" c="dimmed" mt={4}>
+              בסימולציה, הודעות לקבוצות ולצ'אטים נשמרות במערכת ולא יוצאות לוואטסאפ. אפשר לעבור לטלפון אמיתי בכל זמן.
+            </Text>
+          </div>
           <SimpleGrid cols={{ base: 1, sm: 3 }}>
             <TextInput label="apiUrl" value={str("greenapi_api_url")} onChange={(e) => set("greenapi_api_url", e.currentTarget.value)} dir="ltr" />
             <TextInput label="idInstance" value={str("greenapi_id_instance")} onChange={(e) => set("greenapi_id_instance", e.currentTarget.value)} dir="ltr" />
@@ -309,7 +326,7 @@ export function SettingsPage() {
             <Button variant="light" onClick={connectWebhook} loading={waBusy} disabled={!meta.greenApiConfigured}>
               חיבור webhook
             </Button>
-            <Button loading={saving} onClick={() => save(["greenapi_api_url", "greenapi_id_instance", "greenapi_api_token", "whatsapp_agent_enabled"])}>
+            <Button loading={saving} onClick={() => save(["whatsapp_mode", "greenapi_api_url", "greenapi_id_instance", "greenapi_api_token", "whatsapp_agent_enabled"])}>
               שמירה
             </Button>
           </Group>

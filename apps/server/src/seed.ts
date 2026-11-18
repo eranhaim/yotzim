@@ -1,8 +1,9 @@
 import sharp from "sharp";
 import { db } from "./db.js";
 import { saveImage } from "./media.js";
-import { createParty, listCategories, createCategory } from "./parties.js";
+import { createCategory, createParty, getParty, listCategories } from "./parties.js";
 import { createPost } from "./posts.js";
+import { announcementTemplate, broadcast, createGroup } from "./whatsapp/groups.js";
 
 /**
  * Demo content for the sales meeting: categories, sample parties and a posting schedule.
@@ -230,5 +231,84 @@ export async function seedDemoData() {
   ];
   for (const id of pastIds) {
     db.prepare("UPDATE posts SET status='published', simulated=1, published_at=scheduled_at WHERE id=?").run(id);
+  }
+}
+
+/**
+ * Demo WhatsApp groups for the simulated number, plus a few announcements.
+ * Runs only when there are no groups. Groups are capped at 1,024 members, like real WhatsApp groups.
+ */
+export async function seedWhatsAppGroups() {
+  const count = db.prepare<[], { n: number }>("SELECT COUNT(*) AS n FROM wa_groups").get()!.n;
+  if (count > 0) return;
+  console.log("[seed] creating demo WhatsApp groups");
+  const cat = Object.fromEntries(listCategories().map((c) => [c.name, c.id]));
+  const ids = (names: string[]) => names.map((n) => cat[n]).filter((x): x is number => typeof x === "number");
+
+  const community = createGroup({
+    name: "קהילת יוצאים 🎉",
+    kind: "community",
+    parentId: null,
+    chatId: null,
+    members: 0,
+    region: null,
+    description: "הקהילה הראשית: כל הקבוצות לפי סגנון ואזור, וקבוצת עדכונים לכולם.",
+    categoryIds: [],
+  });
+  const groups: [string, number, string | null, string[], string][] = [
+    ["יוצאים · טראנס וטבע 🌲", 1024, null, ["טראנס", "טראנס טבע"], "מסיבות טראנס, טבע ושקיעות."],
+    ["יוצאים · טכנו ורייב ⚡", 987, null, ["טכנו", "רייב"], "טכנו, רייבים ומחסנים."],
+    ["יוצאים · תל אביב 🌃", 1024, "תל אביב", [], "כל המסיבות בתל אביב והסביבה."],
+    ["יוצאים · צפון 🏔️", 812, "צפון", [], "מסיבות בצפון, כולל הסעות מחיפה והקריות."],
+    ["יוצאים · חוף ושקיעות 🏖️", 655, null, ["מסיבת חוף"], "מסיבות חוף בקיץ ובחורף."],
+    ["יוצאים · היפ הופ ומזרחית 🔥", 903, null, ["היפ הופ", "מזרחית"], "היפ הופ, מזרחית ולהיטים."],
+  ];
+  const groupIds = groups.map(([name, members, region, cats, description]) =>
+    createGroup({ name, kind: "group", parentId: community, chatId: null, members, region, description, categoryIds: ids(cats) }),
+  );
+  createGroup({
+    name: "יוצאים VIP ⭐",
+    kind: "group",
+    parentId: null,
+    chatId: null,
+    members: 214,
+    region: null,
+    description: "לקוחות חוזרים: הטבות ומכירה מוקדמת.",
+    categoryIds: [],
+  });
+
+  // Announce the next two parties in the groups that fit them, as if it was done in the last days.
+  const upcoming = db
+    .prepare<[], { id: number }>(
+      "SELECT id FROM parties WHERE status = 'on_sale' AND starts_at >= datetime('now') ORDER BY starts_at LIMIT 3",
+    )
+    .all();
+  for (const [i, { id }] of upcoming.entries()) {
+    const party = getParty(id);
+    if (!party) continue;
+    const partyCats = new Set(party.categories.map((c) => c.id));
+    const targets = groupIds.filter((gid, idx) => {
+      const [, , region, cats] = groups[idx]!;
+      return (region && region === party.region) || ids(cats).some((c) => partyCats.has(c)) || gid === groupIds[2];
+    });
+    if (i < 2) {
+      const msgIds = await broadcast({
+        groupIds: targets,
+        partyId: id,
+        text: announcementTemplate(party),
+        mediaId: party.cover?.id ?? null,
+        scheduledAt: null,
+      });
+      const sentAt = new Date(Date.now() - (2 - i) * 86400_000 + 4 * 3600_000).toISOString();
+      for (const m of msgIds) db.prepare("UPDATE wa_group_messages SET sent_at = ? WHERE id = ?").run(sentAt, m);
+    } else {
+      await broadcast({
+        groupIds: targets,
+        partyId: id,
+        text: announcementTemplate(party),
+        mediaId: party.cover?.id ?? null,
+        scheduledAt: daysFromNow(1, 18),
+      });
+    }
   }
 }

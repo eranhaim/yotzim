@@ -114,6 +114,9 @@ export interface Lead {
   interestedPartyName: string | null;
   sourcePartyId: number | null;
   sourcePartyName: string | null;
+  sourceGroupId: number | null;
+  sourceGroupName: string | null;
+  simulated: boolean;
   botPaused: boolean;
   createdAt: string;
   lastMessageAt: string | null;
@@ -147,6 +150,85 @@ export interface Meta {
   agentConfigured: boolean;
   agentModel: string;
   greenApiConfigured: boolean;
+  whatsappMode: "simulation" | "greenapi";
+  whatsappLive: boolean;
+  whatsappNumber: string;
+}
+
+export interface WaGroup {
+  id: number;
+  name: string;
+  kind: "group" | "community";
+  parentId: number | null;
+  parentName: string | null;
+  chatId: string | null;
+  members: number;
+  groupCount: number;
+  region: string | null;
+  description: string | null;
+  categoryIds: number[];
+  lastMessage: { text: string; at: string } | null;
+  sentCount: number;
+  scheduledCount: number;
+  leadsCount: number;
+}
+
+export interface WaGroupInput {
+  name: string;
+  kind: "group" | "community";
+  parentId: number | null;
+  chatId: string | null;
+  members: number;
+  region: string | null;
+  description: string | null;
+  categoryIds: number[];
+}
+
+export interface GroupMessage {
+  id: number;
+  groupId: number;
+  partyId: number | null;
+  partyName: string | null;
+  text: string;
+  media: Media | null;
+  status: "scheduled" | "sending" | "sent" | "failed";
+  scheduledAt: string | null;
+  sentAt: string | null;
+  error: string | null;
+  simulated: boolean;
+  createdAt: string;
+  leads: number;
+}
+
+export interface WaChat extends Lead {
+  preview: { role: TranscriptEntry["role"]; text: string; at: string } | null;
+}
+
+export interface WaOverview {
+  mode: "simulation" | "greenapi";
+  live: boolean;
+  greenApiConfigured: boolean;
+  number: string;
+  numberIsSet: boolean;
+  agentEnabled: boolean;
+  agentConfigured: boolean;
+  stats: {
+    groups: number;
+    communities: number;
+    members: number;
+    chats: number;
+    fromGroups: number;
+    linksSent: number;
+    announcementsSent: number;
+    announcementsScheduled: number;
+  };
+}
+
+export interface SimContact {
+  name: string;
+  phone: string;
+  chatId: string;
+  text: string;
 }
 
 export interface GoOutImport {

@@ -21,6 +21,7 @@ import { notifications } from "@mantine/notifications";
 import { IconBrandWhatsapp, IconFlask } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api, type Lead, type LeadDetails } from "../api";
 import { LeadProfileCard } from "../components/LeadProfileCard";
 import { WaText } from "../components/WaText";
@@ -30,6 +31,7 @@ function LeadDrawer({ leadId, onClose, onChanged }: { leadId: number | null; onC
   const [details, setDetails] = useState<LeadDetails | null>(null);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
+  const navigate = useNavigate();
 
   const load = useCallback(async () => {
     if (leadId) setDetails(await api.get<LeadDetails>(`/api/leads/${leadId}`));
@@ -138,6 +140,11 @@ function LeadDrawer({ leadId, onClose, onChanged }: { leadId: number | null; onC
                   )}
                 </Paper>
               )}
+              {lead.channel === "whatsapp" && (
+                <Button variant="light" color="green" leftSection={<IconBrandWhatsapp size={16} />} onClick={() => navigate(`/whatsapp?tab=chats&chat=${lead.id}`)}>
+                  פתיחה במסך הוואטסאפ
+                </Button>
+              )}
               <LeadProfileCard lead={lead} events={details.events} />
               <Button variant="subtle" color="red" onClick={remove}>
                 מחיקת ליד
@@ -221,6 +228,11 @@ export function LeadsPage() {
                         <Text fz="sm" fw={500}>
                           {l.name ?? l.waName ?? (l.phone ? `+${l.phone}` : `סימולציה #${l.id}`)}
                         </Text>
+                        {l.sourceGroupName && (
+                          <Text fz="xs" c="dimmed" truncate>
+                            · {l.sourceGroupName}
+                          </Text>
+                        )}
                         {l.botPaused && (
                           <Badge size="xs" color="orange" variant="light">
                             נציג

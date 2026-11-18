@@ -55,3 +55,12 @@ export const fmtRelative = (iso: string | null | undefined) => {
 export const pickerToIso = (v: string | null) => (v ? dayjs(v).toISOString() : null);
 /** ISO -> local "YYYY-MM-DD HH:mm:ss" for Mantine pickers. */
 export const isoToPicker = (iso: string | null) => (iso ? dayjs(iso).format("YYYY-MM-DD HH:mm:ss") : null);
+
+/** "972501234567" -> "+972 50-123-4567" */
+export const fmtPhone = (digits: string | null | undefined) => {
+  if (!digits) return "";
+  const d = digits.replace(/\D/g, "");
+  return d.startsWith("972") && d.length === 12 ? `+972 ${d.slice(3, 5)}-${d.slice(5, 8)}-${d.slice(8)}` : `+${d}`;
+};
+
+export const fmtNumber = (n: number) => n.toLocaleString("he-IL");

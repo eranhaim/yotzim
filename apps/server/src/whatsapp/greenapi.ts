@@ -55,3 +55,8 @@ export function setWebhook(webhookUrl: string, webhookUrlToken: string) {
     stateWebhook: "no",
   });
 }
+
+/** Sends a picture or video by public URL, with an optional caption. */
+export function sendFileByUrl(chatId: string, urlFile: string, fileName: string, caption?: string) {
+  return call<{ idMessage: string }>("sendFileByUrl", "POST", { chatId, urlFile, fileName, caption });
+}

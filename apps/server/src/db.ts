@@ -120,6 +120,41 @@ const migrations: string[] = [
   );
   CREATE INDEX lead_events_lead ON lead_events (lead_id, id);
   `,
+  `
+  -- WhatsApp groups and communities connected to the business number.
+  CREATE TABLE wa_groups (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    name         TEXT NOT NULL,
+    kind         TEXT NOT NULL DEFAULT 'group' CHECK (kind IN ('group','community')),
+    parent_id    INTEGER REFERENCES wa_groups(id) ON DELETE SET NULL,
+    chat_id      TEXT,
+    members      INTEGER NOT NULL DEFAULT 0,
+    region       TEXT,
+    description  TEXT,
+    category_ids TEXT NOT NULL DEFAULT '[]',
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL
+  );
+
+  CREATE TABLE wa_group_messages (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_id     INTEGER NOT NULL REFERENCES wa_groups(id) ON DELETE CASCADE,
+    party_id     INTEGER REFERENCES parties(id) ON DELETE SET NULL,
+    text         TEXT NOT NULL,
+    media_id     TEXT REFERENCES media(id) ON DELETE SET NULL,
+    status       TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled','sending','sent','failed')),
+    scheduled_at TEXT,
+    sent_at      TEXT,
+    error        TEXT,
+    simulated    INTEGER NOT NULL DEFAULT 0,
+    created_at   TEXT NOT NULL
+  );
+  CREATE INDEX wa_group_messages_group ON wa_group_messages (group_id, id);
+  CREATE INDEX wa_group_messages_due ON wa_group_messages (status, scheduled_at);
+
+  ALTER TABLE leads ADD COLUMN source_group_id INTEGER REFERENCES wa_groups(id) ON DELETE SET NULL;
+  ALTER TABLE leads ADD COLUMN simulated INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 function migrate() {

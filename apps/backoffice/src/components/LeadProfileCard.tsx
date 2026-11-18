@@ -1,5 +1,6 @@
 import { Badge, Box, Group, Paper, Stack, Text, Timeline } from "@mantine/core";
 import {
+  IconBrandWhatsapp,
   IconCalendar,
   IconCash,
   IconLink,
@@ -110,6 +111,14 @@ export function LeadProfileCard({ lead, events }: { lead: Lead; events: LeadEven
         <Field icon={<IconUsersGroup size={16} />} label="כמה מגיעים" value={lead.groupSize} flash={changed.has("groupSize")} />
         <Field icon={<IconCalendar size={16} />} label="תאריכים מועדפים" value={lead.preferredDates} flash={changed.has("preferredDates")} />
         <Field icon={<IconLink size={16} />} label="מסיבה שמעניינת" value={lead.interestedPartyName} flash={changed.has("interestedPartyName")} />
+        <Field
+          icon={<IconBrandWhatsapp size={16} />}
+          label="הגיע/ה מ"
+          value={[lead.sourceGroupName ? `קבוצה: ${lead.sourceGroupName}` : null, lead.sourcePartyName ? `פוסט: ${lead.sourcePartyName}` : null]
+            .filter(Boolean)
+            .join(" · ")}
+          flash={false}
+        />
         <Field icon={<IconNote size={16} />} label="הערות לצוות" value={lead.notes} flash={changed.has("notes")} />
       </Stack>
 

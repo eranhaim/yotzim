@@ -8,7 +8,10 @@ import { config, isProduction } from "./config.js";
 import { startScheduler } from "./instagram.js";
 import { MEDIA_DIR } from "./media.js";
 import { api, errorHandler } from "./routes.js";
-import { seedDemoData } from "./seed.js";
+import { seedDemoData, seedWhatsAppGroups } from "./seed.js";
+import { startGroupScheduler } from "./whatsapp/groups.js";
+import { getParty } from "./parties.js";
+import { businessNumber, waMeLink } from "./whatsapp/transport.js";
 import { greenApiWebhook } from "./whatsapp/webhook.js";
 
 if (isProduction && (config.adminPassword === "yotzim" || config.sessionSecret.startsWith("dev-only"))) {
@@ -28,6 +31,13 @@ app.use("/media", express.static(MEDIA_DIR, { maxAge: "7d", index: false }));
 
 app.post("/webhooks/greenapi", greenApiWebhook);
 
+// Short links in group messages: open a private chat with the party and group code.
+app.get("/go/:party/:group", (req, res) => {
+  const party = getParty(Number(req.params.party));
+  const groupId = Number(req.params.group) || null;
+  res.redirect(302, party ? waMeLink(party.id, party.name, groupId) : `https://wa.me/${businessNumber()}`);
+});
+
 app.post("/api/auth/login", login);
 app.post("/api/auth/logout", logout);
 app.get("/api/auth/me", (req, res) => res.json({ authed: isAuthed(req) }));
@@ -37,13 +47,17 @@ app.use("/api", errorHandler);
 // The back office (built React app), with SPA fallback.
 if (fs.existsSync(config.webDistDir)) {
   app.use(express.static(config.webDistDir, { index: false, maxAge: "1h" }));
-  app.get(/^(?!\/(api|media|webhooks)\/).*/, (_req, res) => {
+  app.get(/^(?!\/(api|media|webhooks|go)\/).*/, (_req, res) => {
     res.sendFile(path.join(config.webDistDir, "index.html"));
   });
 }
 
-await (config.seedDemoData ? seedDemoData() : Promise.resolve());
+if (config.seedDemoData) {
+  await seedDemoData();
+  await seedWhatsAppGroups();
+}
 startScheduler();
+startGroupScheduler();
 
 app.listen(config.port, () => {
   console.log(`[server] listening on :${config.port} (public URL ${config.publicBaseUrl})`);

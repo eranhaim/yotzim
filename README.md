@@ -17,6 +17,10 @@ Back office, Instagram post scheduler and WhatsApp AI sales agent for Yotzim, a 
 - **Sales agent:** the same agent serves real WhatsApp chats and the simulation chat on each party page. It stores the full API history per lead, plus a readable transcript and an event log (profile updated, link sent, handoff).
 - **WhatsApp entry links:** each party page offers a `wa.me` link with `(#<partyId>)` in the text. When a lead opens the chat from that link, the agent starts from that party.
 - **Human takeover:** a message sent from the business phone itself, or from the leads page, pauses the bot for that lead.
+- **WhatsApp number page (`/whatsapp`):** the business number as a card, the groups and communities connected to it, the announcements sent to each group, and the private chats the agent handles.
+  - **Simulation mode** (default, `WHATSAPP_MODE=simulation`): the number lives inside the app. Group messages and replies are stored, not sent. "Simulate a member click" creates a contact who opens a private chat from the link in a group message; you can then write as the customer or as staff. The same intake code as the real webhook runs (lead creation, entry codes, agent, handoff).
+  - **GREEN-API mode** (`whatsapp_mode=greenapi` in Settings, with credentials): group messages go to each group's `chat_id` (`…@g.us`), and replies go to real chats.
+  - **Group announcements:** a ready text from the party details, or one written by Claude. `{{קישור}}` becomes a short link per group, `/go/<partyId>/<groupId>`, which redirects to `wa.me` with the code `(#<partyId> g<groupId>)`. The lead then records which party and which group it came from. Announcements can be sent now or scheduled (the scheduler runs every 20 seconds).
 
 ## Local development
 
